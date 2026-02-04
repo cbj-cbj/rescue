@@ -26,13 +26,10 @@
         button { cursor: pointer; border: none; padding: 5px 10px; border-radius: 4px; color: white; margin-right: 5px; }
         .btn-pass { background: #28a745; } .btn-reject { background: #dc3545; } .btn-delete { background: #dc3545; } .btn-kick { background: #dc3545; }
         .thumb-img { width: 40px; height: 40px; object-fit: cover; border-radius: 5px; }
-        
-        /* 修改了 flex 布局以适应更多输入框 */
         .admin-form { display: flex; gap: 10px; background: #f8f9fa; padding: 15px; border-radius: 8px; align-items: flex-end; margin-bottom: 15px; border: 1px solid #eee; flex-wrap: wrap; }
         .admin-form div { display: flex; flex-direction: column; margin-bottom: 5px; }
         .admin-form label { font-size: 0.85em; color: #666; margin-bottom: 3px; }
         .admin-form input, .admin-form select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        
         .btn-publish { background: #e83e8c; height: 35px; padding: 0 20px; font-weight: bold; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .btn-add-animal { background: #20c997; height: 35px; padding: 0 20px; font-weight: bold; color: white; border: none; border-radius: 4px; cursor: pointer; }
     </style>
@@ -49,34 +46,14 @@
             <div><label>名字 *</label><input id="ani-name" placeholder="如: 小白" style="width: 100px;"></div>
             <div><label>品种</label><input id="ani-breed" placeholder="如: 田园猫" style="width: 100px;"></div>
             <div><label>年龄</label><input id="ani-age" placeholder="如: 2岁" style="width: 80px;"></div>
-            <div>
-                <label>性别</label>
-                <select id="ani-gender" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <option value="公">公</option>
-                    <option value="母">母</option>
-                    <option value="未知">未知</option>
-                </select>
-            </div>
+            <div><label>性别</label><select id="ani-gender" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;"><option value="公">公</option><option value="母">母</option><option value="未知">未知</option></select></div>
             <div><label>健康状况</label><input id="ani-health" placeholder="如: 健康" style="width: 100px;"></div>
             <div><label>疫苗情况</label><input id="ani-vaccine" placeholder="如: 已接种" style="width: 100px;"></div>
             <div><label>性格特点</label><input id="ani-personality" placeholder="如: 活泼粘人" style="width: 120px;"></div>
             <div><label>图片URL</label><input id="ani-img" placeholder="图片链接"></div>
             <button class="btn-add-animal" onclick="addAnimal()">➕ 录入系统</button>
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>信息</th>
-                    <th>品种</th>
-                    <th>性别/年龄</th>
-                    <th>健康/疫苗</th>
-                    <th>状态</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="animal-list"></tbody>
-        </table>
+        <table><thead><tr><th>ID</th><th>信息</th><th>品种</th><th>性别/年龄</th><th>健康/疫苗</th><th>状态</th><th>操作</th></tr></thead><tbody id="animal-list"></tbody></table>
     </div>
 
     <div class="panel"><h3 style="border-color:#007bff;color:#0056b3">📋 领养申请审核</h3><table><thead><tr><th>ID</th><th>申请人</th><th>学院</th><th>班级</th><th>动物</th><th>理由</th><th>状态</th><th>操作</th></tr></thead><tbody id="audit-list"></tbody></table></div>
@@ -89,26 +66,45 @@
 </div>
 <script>
     const SERVER_URL = "http://127.0.0.1:8000"; let currentUser=null, userMap={}, animalMap={};
+    
+    // ✅ 修复：图片使用静态时间戳 (不闪烁)
+    const PAGE_VERSION = new Date().getTime(); 
+    function getImgUrl(url) {
+        return url + (url.includes('?') ? '&' : '?') + '_v=' + PAGE_VERSION;
+    }
+
+    // ✅ 修复：API使用动态时间戳 (实时更新)
+    function getApiUrl(url) {
+        return url + (url.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
+    }
+
     (function(){ const s=localStorage.getItem('currentUser'); if(!s) return location.href='index.html'; currentUser=JSON.parse(s); if(currentUser.role!=='admin') { alert("无权"); location.href='home.html'; } })();
+    
     window.onload = async function() { 
         document.getElementById('admin-name').innerText = "👋 "+currentUser.real_name; 
-        await fetchUsers(); await fetchAdminAnimals(); initDashboard(); 
-        fetchAdoptions(); fetchDonations(); fetchTasks(); fetchVolunteers(); fetchLost(); 
+        await refreshAllData();
+        setInterval(refreshAllData, 3000);
     };
+
+    async function refreshAllData() {
+        await Promise.all([
+            fetchUsers(), fetchAdminAnimals(), fetchAdoptions(), fetchDonations(), fetchTasks(), fetchVolunteers(), fetchLost()
+        ]);
+        initDashboard();
+    }
     
-    // --- 动物管理 (已更新) ---
     async function fetchAdminAnimals(){ 
-        const res=await fetch(SERVER_URL+"/animals"); const list=await res.json(); animalMap={};
+        const res=await fetch(getApiUrl(SERVER_URL+"/animals")); const list=await res.json(); animalMap={};
         document.getElementById('animal-list').innerHTML = list.map(a => {
             animalMap[a.id] = a.name;
-            let imgUrl = a.image_url.startsWith('/') ? SERVER_URL + a.image_url : a.image_url;
+            // ✅ 图片防抖：使用 getImgUrl
+            let imgUrl = getImgUrl(a.image_url.startsWith('/') ? SERVER_URL + a.image_url : a.image_url);
             let statusBadge = a.status === '待领养' ? 'bg-pass' : 'bg-done';
             let actionBtn = a.status === '待领养' 
                 ? `<button class="btn-delete" style="background:#6c757d;border:none" onclick="updAni(${a.id},'已领养')">设为已领养</button>` 
                 : `<button class="btn-pass" onclick="updAni(${a.id},'待领养')">重置状态</button>`;
 
-            return `
-                <tr>
+            return `<tr>
                     <td>${a.id}</td>
                     <td><img src="${imgUrl}" class="thumb-img"> <strong>${a.name}</strong></td>
                     <td>${a.breed || '-'}</td>
@@ -121,68 +117,39 @@
     }
 
     async function addAnimal() {
-        const name = document.getElementById('ani-name').value;
-        const breed = document.getElementById('ani-breed').value;
-        const age = document.getElementById('ani-age').value;
-        const gender = document.getElementById('ani-gender').value;
-        const health = document.getElementById('ani-health').value;
-        const vaccine = document.getElementById('ani-vaccine').value;
-        const personality = document.getElementById('ani-personality').value;
-        const img = document.getElementById('ani-img').value;
-
+        const name = document.getElementById('ani-name').value; const breed = document.getElementById('ani-breed').value; const age = document.getElementById('ani-age').value;
+        const gender = document.getElementById('ani-gender').value; const health = document.getElementById('ani-health').value; const vaccine = document.getElementById('ani-vaccine').value;
+        const personality = document.getElementById('ani-personality').value; const img = document.getElementById('ani-img').value;
         if(!name) return alert("请至少填写动物名字！");
-
         try {
-            const res = await fetch(SERVER_URL + "/animals", { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ 
-                    name: name, 
-                    breed: breed || "未知品种", 
-                    age: age || "未知",
-                    gender: gender || "未知",
-                    health_status: health || "健康", 
-                    vaccine_status: vaccine || "未接种",
-                    personality: personality || "暂无描述",
-                    image_url: img || "/animals/default.jpg" 
-                }) 
-            });
-            if(res.ok) {
-                alert("✅ 录入成功"); 
-                document.querySelectorAll('.admin-form input').forEach(input => input.value = ''); // 清空
-                fetchAdminAnimals(); 
-                initDashboard();
-            } else {
-                alert("❌ 录入失败");
-            }
-        } catch(e) { console.error(e); alert("网络错误"); }
+            const res = await fetch(SERVER_URL + "/animals", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, breed: breed||"未知", age: age||"未知", gender: gender||"未知", health_status: health||"健康", vaccine_status: vaccine||"未接种", personality: personality||"暂无", image_url: img||"/animals/default.jpg" }) });
+            if(res.ok) { alert("✅ 录入成功"); document.querySelectorAll('.admin-form input').forEach(input => input.value = ''); refreshAllData(); } else { alert("❌ 录入失败"); }
+        } catch(e) { alert("网络错误"); }
     }
     
-    async function updAni(id,s){ if(confirm("改状态?")) await fetch(SERVER_URL+`/animals/${id}/status`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})}); fetchAdminAnimals(); initDashboard(); }
-    async function deleteAnimal(id, name) { if(!confirm(`⚠️ 确定删除动物【${name}】？`)) return; await fetch(SERVER_URL + `/animals/${id}`, { method: 'DELETE' }); alert("已删除"); fetchAdminAnimals(); initDashboard(); fetchAdoptions(); }
+    async function updAni(id,s){ if(confirm("改状态?")) await fetch(SERVER_URL+`/animals/${id}/status`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})}); refreshAllData(); }
+    async function deleteAnimal(id, name) { if(!confirm(`⚠️ 确定删除动物【${name}】？`)) return; await fetch(SERVER_URL + `/animals/${id}`, { method: 'DELETE' }); alert("已删除"); refreshAllData(); }
 
-    // --- 领养审核 ---
     async function fetchAdoptions() { 
-        const res=await fetch(SERVER_URL+"/adoptions"); const list=await res.json(); 
+        const res=await fetch(getApiUrl(SERVER_URL+"/adoptions")); const list=await res.json(); 
         document.getElementById('audit-list').innerHTML=list.reverse().map(a=>`<tr><td>${a.id}</td><td>${userMap[a.user_id]||'未知'}</td><td style="color:#007bff">${a.college||'-'}</td><td style="color:#007bff">${a.student_class||'-'}</td><td style="font-weight:bold">${animalMap[a.animal_id] || `未知(ID:${a.animal_id})`}</td><td>${a.apply_reason}</td><td><span class="badge ${a.status==='待审核'?'bg-wait':(a.status==='已通过'?'bg-pass':'bg-reject')}">${a.status}</span></td><td>${a.status==='待审核'?`<button class="btn-pass" onclick="audAdp(${a.id},'已通过')">通过</button><button class="btn-reject" onclick="audAdp(${a.id},'已拒绝')">拒绝</button>`:''} <button class="btn-delete" onclick="delAdp(${a.id})">🗑️</button></td></tr>`).join(''); 
     }
-    async function audAdp(id,s){ if(confirm("确定操作?")) { await fetch(SERVER_URL+`/adoptions/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})}); fetchAdoptions(); fetchAdminAnimals(); initDashboard(); } }
-    async function delAdp(id){ if(confirm("删?")) await fetch(SERVER_URL+`/adoptions/${id}`,{method:'DELETE'}); fetchAdoptions(); }
+    async function audAdp(id,s){ if(confirm("确定操作?")) { await fetch(SERVER_URL+`/adoptions/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})}); refreshAllData(); } }
+    async function delAdp(id){ if(confirm("删?")) await fetch(SERVER_URL+`/adoptions/${id}`,{method:'DELETE'}); refreshAllData(); }
 
-    // --- 其他功能 ---
-    async function initDashboard() { try { const res=await fetch(SERVER_URL+"/stats"); const data=await res.json(); document.getElementById('stat-users').innerText=data.core_metrics.total_users; document.getElementById('stat-animals').innerText=data.core_metrics.total_animals; document.getElementById('stat-donations').innerText=data.core_metrics.total_donations; document.getElementById('stat-volunteers').innerText=data.core_metrics.total_volunteers; const pie=echarts.init(document.getElementById('chart-pie')); pie.setOption({title:{text:'🐾 领养状态',left:'left',top:10},tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},legend:{orient:'vertical',right:10,top:'center'},color:['#91cc75','#fac858'],series:[{type:'pie',radius:['40%','65%'],center:['40%','55%'],avoidLabelOverlap:true,itemStyle:{borderRadius:10,borderColor:'#fff',borderWidth:2},label:{show:true,formatter:p=>p.value===0?'':`${p.name}\n${p.value}只`,color:'#666'},labelLine:{show:p=>p.value!==0},data:data.animal_stats}]}); const bar=echarts.init(document.getElementById('chart-bar')); bar.setOption({title:{text:'📈 数据概览',left:'center',top:10},tooltip:{trigger:'axis'},xAxis:{type:'category',data:['用户','动物','捐赠','志愿者','待审']},yAxis:{type:'value'},series:[{type:'bar',barWidth:'40%',data:[data.core_metrics.total_users,data.core_metrics.total_animals,data.core_metrics.total_donations,data.core_metrics.total_volunteers,data.core_metrics.pending_adoptions],itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#83a4d4'},{offset:1,color:'#b6fbff'}])}}]}); window.onresize=()=>{pie.resize();bar.resize();}; } catch(e){} }
-    async function fetchUsers(){ const res=await fetch(SERVER_URL+"/users"); const list=await res.json(); userMap={}; document.getElementById('user-list').innerHTML=list.map(u=>{userMap[u.id]=u.real_name; let btn=u.role==='admin'?'<button disabled>🚫</button>':`<button class="btn-kick" onclick="delUser(${u.id},'${u.real_name}')">注销</button>`; return `<tr><td>${u.id}</td><td>${u.real_name}</td><td>${u.role}</td><td>${new Date(u.created_at).toLocaleDateString()}</td><td>${btn}</td></tr>`}).join(''); }
-    async function delUser(id,n){ if(confirm(`注销 ${n}?`)) await fetch(SERVER_URL+`/users/${id}`,{method:'DELETE'}); fetchUsers(); initDashboard(); }
-    async function fetchDonations(){ const res=await fetch(SERVER_URL+"/donations"); const list=await res.json(); document.getElementById('donation-list').innerHTML=list.reverse().map(d=>`<tr><td>${d.id}</td><td style="font-weight:bold">${userMap[d.user_id]||`未知(${d.user_id})`}</td><td style="color:#e83e8c;font-weight:bold">${d.item_name}</td><td>${d.quantity}</td><td style="color:#666">${d.remarks||'-'}</td><td style="color:#888;font-size:0.9em">${new Date(d.donate_date).toLocaleString()}</td><td><button class="btn-delete" onclick="delDonation(${d.id})">🗑️</button></td></tr>`).join(''); }
-    async function delDonation(id){ if(confirm("删?")) await fetch(SERVER_URL+`/donations/${id}`,{method:'DELETE'}); fetchDonations(); initDashboard(); }
-    async function fetchLost(){ const res=await fetch(SERVER_URL+"/lost-pets"); const list=await res.json(); document.getElementById('lost-list').innerHTML=list.reverse().map(p=>`<tr><td>${p.id}</td><td><span class="badge ${p.type==='寻宠'?'bg-reject':'bg-pass'}">${p.type}</span></td><td>${p.title}</td><td>${p.description}</td><td>${p.contact}</td><td>${new Date(p.created_at).toLocaleDateString()}</td><td><button class="btn-delete" onclick="delLost(${p.id})">🗑️</button></td></tr>`).join(''); }
-    async function delLost(id){ if(confirm("删?")) await fetch(SERVER_URL+`/lost-pets/${id}`,{method:'DELETE'}); fetchLost(); }
-    async function fetchTasks(){ const res=await fetch(SERVER_URL+"/tasks"); const list=await res.json(); document.getElementById('task-list').innerHTML=list.reverse().map(t=>`<tr><td>${t.id}</td><td style="color:#e83e8c;font-weight:bold">${t.title}</td><td>${t.required_count}人</td><td><span class="badge bg-pass">招募中</span></td><td><button class="btn-delete" onclick="delTask(${t.id})">🗑️</button></td></tr>`).join(''); }
-    async function publishTask(){ const title=document.getElementById('task-title').value, desc=document.getElementById('task-desc').value, count=document.getElementById('task-count').value; if(!title||!count) return alert("请填写完整"); await fetch(SERVER_URL+"/tasks",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,description:desc,required_count:parseInt(count)})}); alert("发布成功"); document.getElementById('task-title').value=""; fetchTasks(); }
-    async function delTask(id){ if(confirm("删?")) await fetch(SERVER_URL+`/tasks/${id}`,{method:'DELETE'}); fetchTasks(); }
-    async function fetchVolunteers(){ const res=await fetch(SERVER_URL+"/volunteers"); const list=await res.json(); document.getElementById('volunteer-archive').innerHTML=list.filter(v=>v.status==='已通过').map(v=>`<tr><td>${v.id}</td><td><b>${userMap[v.user_id]||'未知'}</b></td><td>${v.available_time}</td><td><span class="badge bg-member">正式</span></td><td><button class="btn-delete" onclick="delVol(${v.id})">移除</button></td></tr>`).join(''); document.getElementById('volunteer-audit').innerHTML=list.filter(v=>v.status!=='已通过').reverse().map(v=>`<tr><td>${v.id}</td><td>${userMap[v.user_id]||'未知'}</td><td>${v.reason}</td><td><span class="badge ${v.status==='待审核'?'bg-wait':'bg-reject'}">${v.status}</span></td><td>${v.status==='待审核'?`<button class="btn-pass" onclick="audVol(${v.id},'已通过')">通过</button><button class="btn-reject" onclick="audVol(${v.id},'已拒绝')">拒绝</button>`:''} <button class="btn-delete" onclick="delVol(${v.id})">🗑️</button></td></tr>`).join(''); }
-    async function audVol(id,s){ await fetch(SERVER_URL+`/volunteers/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})}); fetchVolunteers(); initDashboard(); }
-    async function delVol(id){ if(confirm("删?")) await fetch(SERVER_URL+`/volunteers/${id}`,{method:'DELETE'}); fetchVolunteers(); initDashboard(); }
+    async function initDashboard() { try { const res=await fetch(getApiUrl(SERVER_URL+"/stats")); const data=await res.json(); document.getElementById('stat-users').innerText=data.core_metrics.total_users; document.getElementById('stat-animals').innerText=data.core_metrics.total_animals; document.getElementById('stat-donations').innerText=data.core_metrics.total_donations; document.getElementById('stat-volunteers').innerText=data.core_metrics.total_volunteers; const pie=echarts.init(document.getElementById('chart-pie')); pie.setOption({title:{text:'🐾 领养状态',left:'left',top:10},tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},legend:{orient:'vertical',right:10,top:'center'},color:['#91cc75','#fac858'],series:[{type:'pie',radius:['40%','65%'],center:['40%','55%'],avoidLabelOverlap:true,itemStyle:{borderRadius:10,borderColor:'#fff',borderWidth:2},label:{show:true,formatter:p=>p.value===0?'':`${p.name}\n${p.value}只`,color:'#666'},labelLine:{show:p=>p.value!==0},data:data.animal_stats}]}); const bar=echarts.init(document.getElementById('chart-bar')); bar.setOption({title:{text:'📈 数据概览',left:'center',top:10},tooltip:{trigger:'axis'},xAxis:{type:'category',data:['用户','动物','捐赠','志愿者','待审']},yAxis:{type:'value'},series:[{type:'bar',barWidth:'40%',data:[data.core_metrics.total_users,data.core_metrics.total_animals,data.core_metrics.total_donations,data.core_metrics.total_volunteers,data.core_metrics.pending_adoptions],itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#83a4d4'},{offset:1,color:'#b6fbff'}])}}]}); window.onresize=()=>{pie.resize();bar.resize();}; } catch(e){} }
+    async function fetchUsers(){ const res=await fetch(getApiUrl(SERVER_URL+"/users")); const list=await res.json(); userMap={}; document.getElementById('user-list').innerHTML=list.map(u=>{userMap[u.id]=u.real_name; let btn=u.role==='admin'?'<button disabled>🚫</button>':`<button class="btn-kick" onclick="delUser(${u.id},'${u.real_name}')">注销</button>`; return `<tr><td>${u.id}</td><td>${u.real_name}</td><td>${u.role}</td><td>${new Date(u.created_at).toLocaleDateString()}</td><td>${btn}</td></tr>`}).join(''); }
+    async function delUser(id,n){ if(confirm(`注销 ${n}?`)) await fetch(SERVER_URL+`/users/${id}`,{method:'DELETE'}); refreshAllData(); }
+    async function fetchDonations(){ const res=await fetch(getApiUrl(SERVER_URL+"/donations")); const list=await res.json(); document.getElementById('donation-list').innerHTML=list.reverse().map(d=>`<tr><td>${d.id}</td><td style="font-weight:bold">${userMap[d.user_id]||`未知(${d.user_id})`}</td><td style="color:#e83e8c;font-weight:bold">${d.item_name}</td><td>${d.quantity}</td><td style="color:#666">${d.remarks||'-'}</td><td style="color:#888;font-size:0.9em">${new Date(d.donate_date).toLocaleString()}</td><td><button class="btn-delete" onclick="delDonation(${d.id})">🗑️</button></td></tr>`).join(''); }
+    async function delDonation(id){ if(confirm("删?")) await fetch(SERVER_URL+`/donations/${id}`,{method:'DELETE'}); refreshAllData(); }
+    async function fetchLost(){ const res=await fetch(getApiUrl(SERVER_URL+"/lost-pets")); const list=await res.json(); document.getElementById('lost-list').innerHTML=list.reverse().map(p=>`<tr><td>${p.id}</td><td><span class="badge ${p.type==='寻宠'?'bg-reject':'bg-pass'}">${p.type}</span></td><td>${p.title}</td><td>${p.description}</td><td>${p.contact}</td><td>${new Date(p.created_at).toLocaleDateString()}</td><td><button class="btn-delete" onclick="delLost(${p.id})">🗑️</button></td></tr>`).join(''); }
+    async function delLost(id){ if(confirm("删?")) await fetch(SERVER_URL+`/lost-pets/${id}`,{method:'DELETE'}); refreshAllData(); }
+    async function fetchTasks(){ const res=await fetch(getApiUrl(SERVER_URL+"/tasks")); const list=await res.json(); document.getElementById('task-list').innerHTML=list.reverse().map(t=>`<tr><td>${t.id}</td><td style="color:#e83e8c;font-weight:bold">${t.title}</td><td>${t.required_count}人</td><td><span class="badge bg-pass">招募中</span></td><td><button class="btn-delete" onclick="delTask(${t.id})">🗑️</button></td></tr>`).join(''); }
+    async function publishTask(){ const title=document.getElementById('task-title').value, desc=document.getElementById('task-desc').value, count=document.getElementById('task-count').value; if(!title||!count) return alert("请填写完整"); await fetch(SERVER_URL+"/tasks",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,description:desc,required_count:parseInt(count)})}); alert("发布成功"); document.getElementById('task-title').value=""; refreshAllData(); }
+    async function delTask(id){ if(confirm("删?")) await fetch(SERVER_URL+`/tasks/${id}`,{method:'DELETE'}); refreshAllData(); }
+    async function fetchVolunteers(){ const res=await fetch(getApiUrl(SERVER_URL+"/volunteers")); const list=await res.json(); document.getElementById('volunteer-archive').innerHTML=list.filter(v=>v.status==='已通过').map(v=>`<tr><td>${v.id}</td><td><b>${userMap[v.user_id]||'未知'}</b></td><td>${v.available_time}</td><td><span class="badge bg-member">正式</span></td><td><button class="btn-delete" onclick="delVol(${v.id})">移除</button></td></tr>`).join(''); document.getElementById('volunteer-audit').innerHTML=list.filter(v=>v.status!=='已通过').reverse().map(v=>`<tr><td>${v.id}</td><td>${userMap[v.user_id]||'未知'}</td><td>${v.reason}</td><td><span class="badge ${v.status==='待审核'?'bg-wait':'bg-reject'}">${v.status}</span></td><td>${v.status==='待审核'?`<button class="btn-pass" onclick="audVol(${v.id},'已通过')">通过</button><button class="btn-reject" onclick="audVol(${v.id},'已拒绝')">拒绝</button>`:''} <button class="btn-delete" onclick="delVol(${v.id})">🗑️</button></td></tr>`).join(''); }
+    async function audVol(id,s){ await fetch(SERVER_URL+`/volunteers/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})}); refreshAllData(); }
+    async function delVol(id){ if(confirm("删?")) await fetch(SERVER_URL+`/volunteers/${id}`,{method:'DELETE'}); refreshAllData(); }
     function logout(){ localStorage.removeItem('currentUser'); location.href='index.html'; }
 </script>
 </body>
