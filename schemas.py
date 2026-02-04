@@ -106,17 +106,23 @@ class TaskResponse(BaseModel):
     created_at: datetime
     class Config: from_attributes = True
 
-# 寻宠
+# --- 寻宠 (这里是你缺失的部分) ---
 class LostPetCreate(BaseModel):
     title: str
     type: str 
     description: str
     contact: str
+
+# ✅ 新增：审核模型 (解决报错的关键)
+class LostPetAudit(BaseModel):
+    status: str
+
 class LostPetResponse(BaseModel):
     id: int
     title: str
     type: str
     description: str
     contact: str
+    status: str          # ✅ 修改：增加了 status 字段
     created_at: datetime
     class Config: from_attributes = True

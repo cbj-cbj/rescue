@@ -29,14 +29,14 @@ class Animal(Base):
     status = Column(String, default="待领养") 
     created_at = Column(DateTime, default=datetime.now)
 
-# 3. 领养申请表 (含学院、班级)
+# 3. 领养申请表
 class Adoption(Base):
     __tablename__ = "adoptions"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
     animal_id = Column(Integer, index=True)
-    college = Column(String)       # 学院
-    student_class = Column(String) # 班级
+    college = Column(String)
+    student_class = Column(String)
     apply_reason = Column(String)
     status = Column(String, default="待审核")
     admin_comment = Column(String, nullable=True)
@@ -80,4 +80,5 @@ class LostPet(Base):
     type = Column(String) # 寻宠/寻主
     description = Column(String)
     contact = Column(String)
+    status = Column(String, default="待审核")  # ✅ 必须有这个字段
     created_at = Column(DateTime, default=datetime.now)

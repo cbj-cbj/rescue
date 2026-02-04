@@ -57,23 +57,38 @@
     </div>
 
     <div class="panel"><h3 style="border-color:#007bff;color:#0056b3">📋 领养申请审核</h3><table><thead><tr><th>ID</th><th>申请人</th><th>学院</th><th>班级</th><th>动物</th><th>理由</th><th>状态</th><th>操作</th></tr></thead><tbody id="audit-list"></tbody></table></div>
+    
     <div class="panel"><h3 style="border-color:#e83e8c;color:#d63384">📦 物资捐赠记录</h3><table><thead><tr><th>ID</th><th>爱心人士</th><th>捐赠物品</th><th>数量</th><th>备注</th><th>时间</th><th>操作</th></tr></thead><tbody id="donation-list"></tbody></table></div>
-    <div class="panel"><h3 style="border-color:#007bff;color:#007bff">📢 寻宠启事</h3><table><thead><tr><th>ID</th><th>类型</th><th>标题</th><th>描述</th><th>联系方式</th><th>时间</th><th>操作</th></tr></thead><tbody id="lost-list"></tbody></table></div>
+    
+    <div class="panel">
+        <h3 style="border-color:#007bff;color:#007bff">📢 寻宠启事管理</h3>
+        <div class="admin-form">
+            <div><label>类型</label><select id="lost-type" style="width:80px"><option value="寻宠">寻宠</option><option value="寻主">寻主</option></select></div>
+            <div><label>标题</label><input id="lost-title" placeholder="如: 丢失橘猫" style="width:150px"></div>
+            <div><label>描述</label><input id="lost-desc" placeholder="简要描述" style="width:200px"></div>
+            <div><label>联系方式</label><input id="lost-contact" placeholder="电话/微信"></div>
+            <button class="btn-publish" onclick="publishLostAdmin()">🚀 发布(免审)</button>
+        </div>
+        <table><thead><tr><th>ID</th><th>状态</th><th>类型</th><th>标题</th><th>描述</th><th>联系方式</th><th>时间</th><th>操作</th></tr></thead><tbody id="lost-list"></tbody></table>
+    </div>
+
     <div class="panel"><h3 style="border-color:#e83e8c;color:#d63384">📢 任务发布</h3><div class="admin-form"><div><label>标题</label><br><input id="task-title"></div><div><label>详情</label><br><input id="task-desc"></div><div><label>人数</label><br><input id="task-count" type="number" style="width:60px"></div><button class="btn-publish" onclick="publishTask()">🚀 发布</button></div><table><thead><tr><th>ID</th><th>标题</th><th>人数</th><th>状态</th><th>操作</th></tr></thead><tbody id="task-list"></tbody></table></div>
+    
     <div class="panel"><h3 style="border-color:#fd7e14;color:#d9480f">📜 志愿者档案</h3><table><thead><tr><th>ID</th><th>姓名</th><th>时间</th><th>身份</th><th>操作</th></tr></thead><tbody id="volunteer-archive"></tbody></table></div>
     <div class="panel"><h3 style="border-color:#fd7e14;color:#d9480f">🙋 志愿者审核</h3><table><thead><tr><th>ID</th><th>申请人</th><th>理由</th><th>状态</th><th>操作</th></tr></thead><tbody id="volunteer-audit"></tbody></table></div>
+    
     <div class="panel"><h3 style="border-color:#6610f2;color:#6610f2">👥 用户管理</h3><table id="table-users"><thead><tr><th>ID</th><th>姓名</th><th>角色</th><th>注册时间</th><th>操作</th></tr></thead><tbody id="user-list"></tbody></table></div>
 </div>
 <script>
     const SERVER_URL = "http://127.0.0.1:8000"; let currentUser=null, userMap={}, animalMap={};
     
-    // ✅ 修复：图片使用静态时间戳 (不闪烁)
+    // 图片使用静态时间戳 (不闪烁)
     const PAGE_VERSION = new Date().getTime(); 
     function getImgUrl(url) {
         return url + (url.includes('?') ? '&' : '?') + '_v=' + PAGE_VERSION;
     }
 
-    // ✅ 修复：API使用动态时间戳 (实时更新)
+    // API使用动态时间戳 (实时更新)
     function getApiUrl(url) {
         return url + (url.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
     }
@@ -93,11 +108,11 @@
         initDashboard();
     }
     
+    // --- 动物管理 ---
     async function fetchAdminAnimals(){ 
         const res=await fetch(getApiUrl(SERVER_URL+"/animals")); const list=await res.json(); animalMap={};
         document.getElementById('animal-list').innerHTML = list.map(a => {
             animalMap[a.id] = a.name;
-            // ✅ 图片防抖：使用 getImgUrl
             let imgUrl = getImgUrl(a.image_url.startsWith('/') ? SERVER_URL + a.image_url : a.image_url);
             let statusBadge = a.status === '待领养' ? 'bg-pass' : 'bg-done';
             let actionBtn = a.status === '待领养' 
@@ -130,6 +145,7 @@
     async function updAni(id,s){ if(confirm("改状态?")) await fetch(SERVER_URL+`/animals/${id}/status`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})}); refreshAllData(); }
     async function deleteAnimal(id, name) { if(!confirm(`⚠️ 确定删除动物【${name}】？`)) return; await fetch(SERVER_URL + `/animals/${id}`, { method: 'DELETE' }); alert("已删除"); refreshAllData(); }
 
+    // --- 领养审核 ---
     async function fetchAdoptions() { 
         const res=await fetch(getApiUrl(SERVER_URL+"/adoptions")); const list=await res.json(); 
         document.getElementById('audit-list').innerHTML=list.reverse().map(a=>`<tr><td>${a.id}</td><td>${userMap[a.user_id]||'未知'}</td><td style="color:#007bff">${a.college||'-'}</td><td style="color:#007bff">${a.student_class||'-'}</td><td style="font-weight:bold">${animalMap[a.animal_id] || `未知(ID:${a.animal_id})`}</td><td>${a.apply_reason}</td><td><span class="badge ${a.status==='待审核'?'bg-wait':(a.status==='已通过'?'bg-pass':'bg-reject')}">${a.status}</span></td><td>${a.status==='待审核'?`<button class="btn-pass" onclick="audAdp(${a.id},'已通过')">通过</button><button class="btn-reject" onclick="audAdp(${a.id},'已拒绝')">拒绝</button>`:''} <button class="btn-delete" onclick="delAdp(${a.id})">🗑️</button></td></tr>`).join(''); 
@@ -137,13 +153,79 @@
     async function audAdp(id,s){ if(confirm("确定操作?")) { await fetch(SERVER_URL+`/adoptions/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})}); refreshAllData(); } }
     async function delAdp(id){ if(confirm("删?")) await fetch(SERVER_URL+`/adoptions/${id}`,{method:'DELETE'}); refreshAllData(); }
 
+    // --- 寻宠启事管理 (审核 & 发布) ---
+    async function fetchLost(){ 
+        const res=await fetch(getApiUrl(SERVER_URL+"/lost-pets")); 
+        const list=await res.json(); 
+        document.getElementById('lost-list').innerHTML=list.reverse().map(p=> {
+            let statusBadge = p.status === '待审核' ? 'bg-wait' : (p.status === '已通过' ? 'bg-pass' : 'bg-reject');
+            let auditBtns = p.status === '待审核' 
+                ? `<button class="btn-pass" onclick="auditLost(${p.id}, '已通过')">通过</button>
+                   <button class="btn-reject" onclick="auditLost(${p.id}, '已拒绝')">拒绝</button>` 
+                : '';
+            
+            return `<tr>
+                <td>${p.id}</td>
+                <td><span class="badge ${statusBadge}">${p.status||'待审核'}</span></td>
+                <td><span class="badge ${p.type==='寻宠'?'bg-reject':'bg-pass'}">${p.type}</span></td>
+                <td>${p.title}</td>
+                <td>${p.description}</td>
+                <td>${p.contact}</td>
+                <td>${new Date(p.created_at).toLocaleDateString()}</td>
+                <td>${auditBtns} <button class="btn-delete" onclick="delLost(${p.id})">🗑️</button></td>
+            </tr>`;
+        }).join(''); 
+    }
+    
+    // 审核寻宠
+    async function auditLost(id, status) {
+        if(!confirm(`确定要将此条信息标记为【${status}】吗？`)) return;
+        await fetch(SERVER_URL + `/lost-pets/${id}/status`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: status})
+        });
+        refreshAllData();
+    }
+
+    // 管理员发布（直接通过）
+    async function publishLostAdmin(){ 
+        const type = document.getElementById('lost-type').value;
+        const title = document.getElementById('lost-title').value;
+        const desc = document.getElementById('lost-desc').value;
+        const contact = document.getElementById('lost-contact').value;
+        
+        if(!title || !desc) return alert("请填写完整");
+        
+        // 1. 先发布
+        const res = await fetch(SERVER_URL+"/lost-pets",{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type, title, description:desc, contact})
+        });
+        const newPet = await res.json();
+        
+        // 2. 自动审核通过
+        await fetch(SERVER_URL + `/lost-pets/${newPet.id}/status`, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status: '已通过'})
+        });
+
+        alert("✅ 发布成功"); 
+        document.getElementById('lost-title').value="";
+        document.getElementById('lost-desc').value="";
+        document.getElementById('lost-contact').value="";
+        refreshAllData(); 
+    }
+
+    async function delLost(id){ if(confirm("删?")) await fetch(SERVER_URL+`/lost-pets/${id}`,{method:'DELETE'}); refreshAllData(); }
+
+    // --- 其他功能 ---
     async function initDashboard() { try { const res=await fetch(getApiUrl(SERVER_URL+"/stats")); const data=await res.json(); document.getElementById('stat-users').innerText=data.core_metrics.total_users; document.getElementById('stat-animals').innerText=data.core_metrics.total_animals; document.getElementById('stat-donations').innerText=data.core_metrics.total_donations; document.getElementById('stat-volunteers').innerText=data.core_metrics.total_volunteers; const pie=echarts.init(document.getElementById('chart-pie')); pie.setOption({title:{text:'🐾 领养状态',left:'left',top:10},tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},legend:{orient:'vertical',right:10,top:'center'},color:['#91cc75','#fac858'],series:[{type:'pie',radius:['40%','65%'],center:['40%','55%'],avoidLabelOverlap:true,itemStyle:{borderRadius:10,borderColor:'#fff',borderWidth:2},label:{show:true,formatter:p=>p.value===0?'':`${p.name}\n${p.value}只`,color:'#666'},labelLine:{show:p=>p.value!==0},data:data.animal_stats}]}); const bar=echarts.init(document.getElementById('chart-bar')); bar.setOption({title:{text:'📈 数据概览',left:'center',top:10},tooltip:{trigger:'axis'},xAxis:{type:'category',data:['用户','动物','捐赠','志愿者','待审']},yAxis:{type:'value'},series:[{type:'bar',barWidth:'40%',data:[data.core_metrics.total_users,data.core_metrics.total_animals,data.core_metrics.total_donations,data.core_metrics.total_volunteers,data.core_metrics.pending_adoptions],itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#83a4d4'},{offset:1,color:'#b6fbff'}])}}]}); window.onresize=()=>{pie.resize();bar.resize();}; } catch(e){} }
     async function fetchUsers(){ const res=await fetch(getApiUrl(SERVER_URL+"/users")); const list=await res.json(); userMap={}; document.getElementById('user-list').innerHTML=list.map(u=>{userMap[u.id]=u.real_name; let btn=u.role==='admin'?'<button disabled>🚫</button>':`<button class="btn-kick" onclick="delUser(${u.id},'${u.real_name}')">注销</button>`; return `<tr><td>${u.id}</td><td>${u.real_name}</td><td>${u.role}</td><td>${new Date(u.created_at).toLocaleDateString()}</td><td>${btn}</td></tr>`}).join(''); }
     async function delUser(id,n){ if(confirm(`注销 ${n}?`)) await fetch(SERVER_URL+`/users/${id}`,{method:'DELETE'}); refreshAllData(); }
     async function fetchDonations(){ const res=await fetch(getApiUrl(SERVER_URL+"/donations")); const list=await res.json(); document.getElementById('donation-list').innerHTML=list.reverse().map(d=>`<tr><td>${d.id}</td><td style="font-weight:bold">${userMap[d.user_id]||`未知(${d.user_id})`}</td><td style="color:#e83e8c;font-weight:bold">${d.item_name}</td><td>${d.quantity}</td><td style="color:#666">${d.remarks||'-'}</td><td style="color:#888;font-size:0.9em">${new Date(d.donate_date).toLocaleString()}</td><td><button class="btn-delete" onclick="delDonation(${d.id})">🗑️</button></td></tr>`).join(''); }
     async function delDonation(id){ if(confirm("删?")) await fetch(SERVER_URL+`/donations/${id}`,{method:'DELETE'}); refreshAllData(); }
-    async function fetchLost(){ const res=await fetch(getApiUrl(SERVER_URL+"/lost-pets")); const list=await res.json(); document.getElementById('lost-list').innerHTML=list.reverse().map(p=>`<tr><td>${p.id}</td><td><span class="badge ${p.type==='寻宠'?'bg-reject':'bg-pass'}">${p.type}</span></td><td>${p.title}</td><td>${p.description}</td><td>${p.contact}</td><td>${new Date(p.created_at).toLocaleDateString()}</td><td><button class="btn-delete" onclick="delLost(${p.id})">🗑️</button></td></tr>`).join(''); }
-    async function delLost(id){ if(confirm("删?")) await fetch(SERVER_URL+`/lost-pets/${id}`,{method:'DELETE'}); refreshAllData(); }
     async function fetchTasks(){ const res=await fetch(getApiUrl(SERVER_URL+"/tasks")); const list=await res.json(); document.getElementById('task-list').innerHTML=list.reverse().map(t=>`<tr><td>${t.id}</td><td style="color:#e83e8c;font-weight:bold">${t.title}</td><td>${t.required_count}人</td><td><span class="badge bg-pass">招募中</span></td><td><button class="btn-delete" onclick="delTask(${t.id})">🗑️</button></td></tr>`).join(''); }
     async function publishTask(){ const title=document.getElementById('task-title').value, desc=document.getElementById('task-desc').value, count=document.getElementById('task-count').value; if(!title||!count) return alert("请填写完整"); await fetch(SERVER_URL+"/tasks",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,description:desc,required_count:parseInt(count)})}); alert("发布成功"); document.getElementById('task-title').value=""; refreshAllData(); }
     async function delTask(id){ if(confirm("删?")) await fetch(SERVER_URL+`/tasks/${id}`,{method:'DELETE'}); refreshAllData(); }

@@ -13,7 +13,7 @@ from datetime import datetime
 # 自动建表
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="校园流浪动物救助系统", version="2.4.0")
+app = FastAPI(title="校园流浪动物救助系统", version="2.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -72,12 +72,10 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
 @app.get("/animals", response_model=List[schemas.AnimalResponse])
 def get_animals(db: Session = Depends(get_db)): return db.query(models.Animal).all()
 
-# ✅ 修复：修改路径为 /animals/detail/{id}，避免与静态图片路径 /animals/{filename} 冲突
 @app.get("/animals/detail/{animal_id}", response_model=schemas.AnimalResponse, tags=["2. 动物档案"])
 def get_animal_detail(animal_id: int, db: Session = Depends(get_db)):
     animal = db.query(models.Animal).filter(models.Animal.id == animal_id).first()
-    if not animal:
-        raise HTTPException(status_code=404, detail="未找到该动物档案")
+    if not animal: raise HTTPException(status_code=404, detail="未找到该动物档案")
     return animal
 
 @app.post("/animals", response_model=schemas.AnimalResponse)
@@ -118,13 +116,10 @@ def get_adoptions(db: Session = Depends(get_db)): return db.query(models.Adoptio
 def audit_adoption(id: int, audit: schemas.AdoptionAudit, db: Session = Depends(get_db)):
     app = db.query(models.Adoption).filter(models.Adoption.id == id).first()
     if not app: raise HTTPException(404)
-    
     app.status = audit.status
-    # 确保审核通过时，动物状态变为已领养
     if audit.status == "已通过":
         an = db.query(models.Animal).filter(models.Animal.id == app.animal_id).first()
         if an: an.status = "已领养"
-    
     db.commit(); db.refresh(app)
     return app
 
@@ -205,12 +200,21 @@ def get_stats(db: Session = Depends(get_db)):
         }
     }
 
-# --- 8. 寻宠 ---
+# --- 8. 寻宠 (关键修改点) ---
 @app.post("/lost-pets", response_model=schemas.LostPetResponse, tags=["8. 寻宠"])
 def create_lost_pet(p: schemas.LostPetCreate, db: Session = Depends(get_db)):
-    np = models.LostPet(**p.dict())
+    # 强制状态为 "待审核"
+    np = models.LostPet(**p.dict(), status="待审核")
     db.add(np); db.commit(); db.refresh(np)
     return np
+
+@app.put("/lost-pets/{id}/status", response_model=schemas.LostPetResponse, tags=["8. 寻宠"])
+def audit_lost_pet(id: int, audit: schemas.LostPetAudit, db: Session = Depends(get_db)):
+    p = db.query(models.LostPet).filter(models.LostPet.id == id).first()
+    if not p: raise HTTPException(404, "Not found")
+    p.status = audit.status
+    db.commit(); db.refresh(p)
+    return p
 
 @app.get("/lost-pets", response_model=List[schemas.LostPetResponse], tags=["8. 寻宠"])
 def get_lost_pets(db: Session = Depends(get_db)): return db.query(models.LostPet).all()
@@ -222,7 +226,6 @@ def delete_lost_pet(id: int, db: Session = Depends(get_db)):
     return {"msg": "deleted"}
 
 if not os.path.exists("animals"): os.makedirs("animals")
-# 静态文件挂载点放在最后
 app.mount("/animals", StaticFiles(directory="animals"), name="animals")
 
 if __name__ == "__main__":
