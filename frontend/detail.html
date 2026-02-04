@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>动物档案详情</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #ff6b6b; --secondary: #4ecdc4; --bg: #f9fbfc; }
+        body { font-family: 'Segoe UI','Microsoft YaHei'; background: var(--bg); margin: 0; color: #444; }
+        
+        .container { max-width: 1000px; margin: 40px auto; padding: 20px; }
+        .back-btn { text-decoration: none; color: #666; font-weight: bold; display: inline-flex; align-items: center; margin-bottom: 20px; transition: 0.3s; }
+        .back-btn:hover { color: var(--primary); transform: translateX(-5px); }
+        .back-btn i { margin-right: 8px; }
+
+        .profile-card {
+            background: white; border-radius: 20px; overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            display: flex; flex-wrap: wrap;
+        }
+        
+        .img-section { flex: 1; min-width: 400px; background: #eee; position: relative; }
+        .animal-img { width: 100%; height: 100%; object-fit: cover; min-height: 500px; }
+        
+        .info-section { flex: 1; padding: 40px; min-width: 300px; }
+        
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .animal-name { font-size: 2.5em; font-weight: 800; color: #333; margin: 0; display: flex; align-items: center; gap: 10px; }
+        
+        .status-badge { padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9em; }
+        .status-wait { background: #e0f9f4; color: #1dd1a1; }
+        .status-done { background: #f1f2f6; color: #a4b0be; }
+
+        .tags-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
+        .tag-item { background: #f8f9fa; padding: 12px 15px; border-radius: 12px; display: flex; align-items: center; gap: 12px; }
+        .tag-icon { color: var(--primary); width: 20px; text-align: center; font-size: 1.1em; }
+        .tag-label { font-size: 0.85em; color: #888; display: block; margin-bottom: 2px; }
+        .tag-value { font-weight: 600; color: #333; }
+        
+        .section-title { font-size: 1.2em; font-weight: 700; margin: 30px 0 15px; border-left: 5px solid var(--secondary); padding-left: 12px; color: #333; }
+        .desc-text { line-height: 1.8; color: #555; background: #fffbf0; padding: 20px; border-radius: 12px; border: 1px solid #ffeeba; }
+
+        .btn-adopt {
+            display: block; width: 100%; text-align: center; background: var(--primary); 
+            color: white; padding: 18px; border-radius: 50px; border: none; 
+            font-size: 1.2em; font-weight: bold; cursor: pointer; margin-top: 40px; 
+            transition: all 0.3s; box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
+        }
+        .btn-adopt:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5); }
+        .btn-adopt:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="home.html?view=animals" class="back-btn"><i class="fas fa-arrow-left"></i> 返回领养中心</a>
+    
+    <div class="profile-card" id="profile-content">
+        <div style="padding:60px; text-align:center; width:100%; color:#999">
+            <i class="fas fa-spinner fa-spin fa-2x"></i><br><br>正在读取档案...
+        </div>
+    </div>
+</div>
+
+<script>
+    const SERVER_URL = "http://127.0.0.1:8000";
+    let currentUser = null;
+    let currentAnimal = null;
+
+    (function(){ 
+        const s = localStorage.getItem('currentUser'); 
+        if(!s) return location.href='index.html'; 
+        currentUser = JSON.parse(s); 
+    })();
+
+    window.onload = async function() {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        if(!id) { alert("参数错误"); location.href='home.html'; return; }
+        await fetchDetail(id);
+    };
+
+    async function fetchDetail(id) {
+        try {
+            // ✅ 修复：请求 URL 改为 /animals/detail/${id}
+            const res = await fetch(`${SERVER_URL}/animals/detail/${id}`);
+            if(!res.ok) throw new Error("未找到数据");
+            const a = await res.json();
+            currentAnimal = a;
+            render(a);
+        } catch(e) {
+            document.getElementById('profile-content').innerHTML = `
+                <div style="padding:60px; text-align:center; width:100%">
+                    <h3>😿 找不到这只小动物的信息</h3>
+                    <p>它可能已被删除或ID错误。</p>
+                </div>`;
+        }
+    }
+
+    function render(a) {
+        let imgUrl = a.image_url.startsWith('/') ? SERVER_URL + a.image_url : a.image_url;
+        let isAdopted = a.status !== '待领养';
+        
+        let genderHtml = '';
+        if(a.gender === '公') genderHtml = '<i class="fas fa-mars" style="color:#54a0ff; font-size:0.8em"></i>';
+        else if(a.gender === '母') genderHtml = '<i class="fas fa-venus" style="color:#ff6b6b; font-size:0.8em"></i>';
+
+        const html = `
+            <div class="img-section">
+                <img src="${imgUrl}" class="animal-img" alt="${a.name}">
+            </div>
+            <div class="info-section">
+                <div class="header-row">
+                    <h1 class="animal-name">${a.name} ${genderHtml}</h1>
+                    <span class="status-badge ${isAdopted ? 'status-done' : 'status-wait'}">${a.status}</span>
+                </div>
+
+                <div class="tags-grid">
+                    <div class="tag-item">
+                        <i class="fas fa-paw tag-icon"></i> 
+                        <div><span class="tag-label">品种</span><span class="tag-value">${a.breed}</span></div>
+                    </div>
+                    <div class="tag-item">
+                        <i class="fas fa-birthday-cake tag-icon"></i> 
+                        <div><span class="tag-label">年龄</span><span class="tag-value">${a.age || '未知'}</span></div>
+                    </div>
+                    <div class="tag-item">
+                        <i class="fas fa-heartbeat tag-icon"></i> 
+                        <div><span class="tag-label">健康状况</span><span class="tag-value">${a.health_status || '健康'}</span></div>
+                    </div>
+                    <div class="tag-item">
+                        <i class="fas fa-syringe tag-icon"></i> 
+                        <div><span class="tag-label">疫苗情况</span><span class="tag-value">${a.vaccine_status || '未记录'}</span></div>
+                    </div>
+                </div>
+
+                <div class="section-title">✨ 性格特点</div>
+                <div class="desc-text">
+                    ${a.personality ? a.personality : '暂无详细性格描述，但这一定是一只可爱的小动物！'}
+                </div>
+
+                <button class="btn-adopt" ${isAdopted ? 'disabled' : ''} onclick="applyAdopt()">
+                    ${isAdopted ? '🚫 已经被领养啦' : '❤️ 申请领养此宠物'}
+                </button>
+            </div>
+        `;
+        document.getElementById('profile-content').innerHTML = html;
+    }
+
+    async function applyAdopt() {
+        if(!currentAnimal) return;
+        const c = prompt("请输入您的学院:");
+        if(c === null) return;
+        const cl = prompt("请输入您的班级:");
+        if(cl === null) return;
+        const r = prompt(`请填写申请理由 (为了给${currentAnimal.name}一个更好的家):`);
+        if(!r) return;
+
+        try {
+            const res = await fetch(SERVER_URL+"/adoptions", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    user_id: currentUser.id,
+                    animal_id: currentAnimal.id,
+                    college: c,
+                    student_class: cl,
+                    apply_reason: r
+                })
+            });
+            if(res.ok) {
+                alert("✅ 申请已提交！请耐心等待管理员审核。");
+                location.href = 'home.html';
+            } else {
+                alert("❌ 提交失败：" + (await res.json()).detail);
+            }
+        } catch(e) { alert("网络错误，请稍后再试"); }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>主页</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #ff6b6b; --secondary: #4ecdc4; --gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+        body { margin:0; font-family:'Segoe UI','Microsoft YaHei'; background:#f9fbfc; color:#444; overflow-x:hidden; }
+        .header { position:sticky; top:0; z-index:1000; background:rgba(255,255,255,0.85); backdrop-filter:blur(12px); box-shadow:0 4px 20px rgba(0,0,0,0.05); padding:0 20px; }
+        .nav-container { max-width:1200px; margin:0 auto; height:70px; display:flex; justify-content:space-between; align-items:center; }
+        .logo { 
+            font-size:1.6em; font-weight:800; 
+            background: linear-gradient(45deg,#ff6b6b,#ffb88c); 
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            display:flex; align-items:center; gap:10px; 
+        }
+        .menu { display:flex; gap:10px; background:rgba(0,0,0,0.03); padding:5px; border-radius:30px; }
+        .menu-item { padding:8px 20px; border-radius:20px; cursor:pointer; font-weight:600; color:#666; transition:all 0.3s; }
+        .menu-item:hover { color:var(--primary); background:white; }
+        .menu-item.active { background:white; color:var(--primary); box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+        .btn-logout { padding:8px 18px; border:2px solid #ffecec; background:white; color:#ff6b6b; border-radius:30px; cursor:pointer; font-weight:600; }
+        .main-content { max-width:1200px; margin:30px auto; padding:0 20px; min-height:80vh; }
+        .view-section { display:none; opacity:0; transform:translateY(20px); transition:all 0.4s ease; }
+        .view-section.active { display:block; opacity:1; transform:translateY(0); }
+        .hero-card { background:var(--gradient); border-radius:25px; padding:60px; color:white; text-align:center; margin-bottom:40px; position:relative; overflow:hidden; box-shadow:0 15px 40px rgba(255,154,158,0.4); }
+        .hero-card h1 { font-size:3em; margin:0 0 15px; text-shadow:0 4px 10px rgba(0,0,0,0.1); }
+        .stats-grid { display:flex; gap:30px; margin-bottom:50px; }
+        .stat-box { flex:1; background:white; padding:30px; border-radius:20px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); transition:transform 0.3s; }
+        .stat-box:hover { transform:translateY(-10px); }
+        .stat-num { font-size:2.5em; font-weight:800; color:#333; display:block; }
+        .icon-blue { color:#54a0ff; } .icon-green { color:#1dd1a1; } .icon-pink { color:#ff6b6b; }
+        .grid-container { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:30px; }
+        .animal-card { background:white; border-radius:20px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.05); transition:all 0.3s; display:flex; flex-direction:column; }
+        .animal-card:hover { transform:translateY(-10px); box-shadow:0 15px 35px rgba(0,0,0,0.1); }
+        .card-img { height:220px; width:100%; object-fit:cover; transition: opacity 0.3s; }
+        .card-img:hover { opacity: 0.9; }
+        .card-info { padding:20px; flex-grow:1; }
+        .tag { padding:4px 12px; border-radius:12px; font-size:0.8em; font-weight:600; }
+        .tag-wait { background:#e0f9f4; color:#1dd1a1; } .tag-done { background:#f1f2f6; color:#a4b0be; }
+        .btn-adopt { width:100%; padding:15px; border:none; font-weight:600; cursor:pointer; transition:0.3s; }
+        .btn-adopt.enable { background:#ff6b6b; color:white; }
+        .btn-adopt.disable { background:#f1f2f6; color:#ccc; }
+        .table-card { background:white; border-radius:20px; padding:40px; box-shadow:0 10px 30px rgba(0,0,0,0.05); }
+        table { width:100%; border-collapse:separate; border-spacing:0 15px; }
+        td { background:#f8f9fa; padding:20px; }
+        .lost-card { background:white; border-radius:15px; padding:25px; margin-bottom:20px; border-left:6px solid #ccc; box-shadow:0 5px 15px rgba(0,0,0,0.03); }
+        .lost-card.lost { border-color:#ff6b6b; } .lost-card.found { border-color:#1dd1a1; }
+        .btn-action { padding:10px 25px; border-radius:50px; border:none; font-weight:600; cursor:pointer; color:white; transition:transform 0.2s; }
+        .btn-action:hover { transform:scale(1.05); }
+        .btn-orange { background:#ff9f43; } .btn-blue { background:#54a0ff; }
+    </style>
+</head>
+<body>
+<header class="header">
+    <div class="nav-container">
+        <div class="logo"><i class="fas fa-paw"></i> 校园流浪动物救助</div>
+        <nav class="menu">
+            <div class="menu-item active" onclick="switchView('home')">首页</div>
+            <div class="menu-item" onclick="switchView('animals')">领养中心</div>
+            <div class="menu-item" onclick="switchView('lost')">寻宠启事</div>
+            <div class="menu-item" onclick="switchView('donate')">捐赠榜</div>
+            <div class="menu-item" onclick="switchView('volunteer')">志愿者</div>
+        </nav>
+        <div style="display:flex; gap:15px; align-items:center"><span id="welcome-msg" style="font-weight:600"></span><button class="btn-logout" onclick="logout()">退出</button></div>
+    </div>
+</header>
+<div class="main-content">
+    <div id="view-home" class="view-section active">
+        <div class="hero-card">
+            <h1>每一次相遇 都是奇迹</h1><p>用领养代替购买，让爱心在校园传递</p>
+            <button class="btn-action" style="background:white; color:#ff6b6b; font-size:1.1em" onclick="switchView('animals')">立即领养 ➔</button>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-box"><i class="fas fa-users icon-blue"></i><span class="stat-num" id="stat-users">0</span><span class="stat-label">爱心用户</span></div>
+            <div class="stat-box"><i class="fas fa-cat icon-pink"></i><span class="stat-num" id="stat-animals">0</span><span class="stat-label">救助动物</span></div>
+            <div class="stat-box"><i class="fas fa-gift icon-green"></i><span class="stat-num" id="stat-donations">0</span><span class="stat-label">收到捐赠</span></div>
+        </div>
+    </div>
+    <div id="view-animals" class="view-section"><div id="animal-list" class="grid-container"></div></div>
+    <div id="view-lost" class="view-section">
+        <div style="max-width:800px; margin:0 auto">
+            <div style="display:flex; justify-content:space-between; margin-bottom:30px"><h2>📢 寻宠 & 招领</h2><button class="btn-action btn-blue" onclick="publishLost()">➕ 发布信息</button></div>
+            <div id="lost-list"></div>
+        </div>
+    </div>
+    <div id="view-donate" class="view-section">
+        <div class="table-card">
+            <div style="display:flex; justify-content:space-between; margin-bottom:30px"><h2>🏆 爱心捐赠风云榜</h2><button class="btn-action btn-orange" onclick="donate()">🎁 我要捐赠</button></div>
+            <table><thead><tr><th>爱心用户</th><th>物品</th><th>数量</th><th>寄语</th><th>时间</th></tr></thead><tbody id="donation-list"></tbody></table>
+        </div>
+    </div>
+    <div id="view-volunteer" class="view-section">
+        <div class="table-card" style="text-align:center; padding:60px">
+            <i class="fas fa-hands-helping" style="font-size:4em; color:#ff6b6b; margin-bottom:20px"></i><h2>成为志愿者</h2>
+            <button class="btn-action btn-blue" style="font-size:1.2em; padding:15px 40px" onclick="applyVol()">🚀 填写申请表</button>
+            <div style="margin-top:50px; text-align:left"><h3>📝 我的申请</h3><table><thead><tr><th>理由</th><th>时间</th><th>状态</th><th>日期</th></tr></thead><tbody id="my-vol-list"></tbody></table></div>
+        </div>
+    </div>
+</div>
+<script>
+    const SERVER_URL="http://127.0.0.1:8000"; let currentUser=null, userMap={};
+    (function(){ const s=localStorage.getItem('currentUser'); if(!s) return location.href='index.html'; currentUser=JSON.parse(s); })();
+    
+    window.onload = async function() { 
+        document.getElementById('welcome-msg').innerText=`Hello, ${currentUser.real_name}`; 
+        await fetchUsers(); 
+        loadHomeStats(); 
+        fetchAnimals(); 
+        fetchLost(); 
+        fetchDonations(); 
+        fetchMyVolunteers(); 
+        
+        const params = new URLSearchParams(window.location.search);
+        const view = params.get('view');
+        if(view) {
+            switchView(view);
+        }
+    };
+
+    async function fetchUsers(){ try{ const res=await fetch(SERVER_URL+"/users"); const list=await res.json(); list.forEach(u=>userMap[u.id]=u.real_name); }catch(e){} }
+    function switchView(n){ document.querySelectorAll('.view-section').forEach(el=>el.classList.remove('active')); document.querySelectorAll('.menu-item').forEach(el=>el.classList.remove('active')); document.getElementById(`view-${n}`).classList.add('active'); const map={'home':0,'animals':1,'lost':2,'donate':3,'volunteer':4}; document.querySelectorAll('.menu-item')[map[n]].classList.add('active'); }
+    async function loadHomeStats(){ try{ const res=await fetch(SERVER_URL+"/stats"); const data=await res.json(); document.getElementById('stat-users').innerText=data.core_metrics.total_users; document.getElementById('stat-animals').innerText=data.core_metrics.total_animals; document.getElementById('stat-donations').innerText=data.core_metrics.total_donations; }catch(e){} }
+    
+    async function fetchAnimals(){ 
+        const res=await fetch(SERVER_URL+"/animals"); const list=await res.json(); 
+        document.getElementById('animal-list').innerHTML=list.map(a=>{ 
+            let img=a.image_url.startsWith('/')?SERVER_URL+a.image_url:a.image_url; 
+            let btn=a.status==='待领养'?`<button class="btn-adopt enable" onclick="adopt(${a.id},'${a.name}')">❤️ 申请领养</button>`:`<button class="btn-adopt disable">🚫 已被领养</button>`; 
+            return `
+            <div class="animal-card">
+                <img src="${img}" class="card-img" 
+                     onclick="location.href='detail.html?id=${a.id}'" 
+                     style="cursor:pointer" 
+                     title="点击查看 ${a.name} 的详细档案">
+                <div class="card-info">
+                    <div style="display:flex;justify-content:space-between">
+                        <span style="font-size:1.4em;font-weight:700">${a.name}</span>
+                        <span class="tag ${a.status==='待领养'?'tag-wait':'tag-done'}">${a.status}</span>
+                    </div>
+                    <p style="color:#666">${a.breed}</p>
+                </div>
+                ${btn}
+            </div>`
+        }).join(''); 
+    }
+
+    async function fetchDonations(){ const res=await fetch(SERVER_URL+"/donations"); const list=await res.json(); document.getElementById('donation-list').innerHTML=list.reverse().map(d=>`<tr><td style="font-weight:bold;color:#555">${userMap[d.user_id]||`ID:${d.user_id}`}</td><td style="color:#ff6b6b;font-weight:bold">${d.item_name}</td><td>${d.quantity}</td><td style="color:#888">"${d.remarks||'加油'}"</td><td>${new Date(d.donate_date).toLocaleDateString()}</td></tr>`).join(''); }
+    
+    // ✅ 已修复：点击取消时中断
+    async function adopt(id, name){ 
+        const c=prompt("请输入学院:"); if(c===null) return;
+        const cl=prompt("请输入班级:"); if(cl===null) return;
+        const r=prompt(`申请理由:`); if(r===null) return;
+        if(!c||!cl||!r) return alert("请填写完整信息");
+
+        await fetch(SERVER_URL+"/adoptions",{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({user_id:currentUser.id,animal_id:id,college:c,student_class:cl,apply_reason:r})
+        }); 
+        alert("已提交申请"); 
+        fetchAnimals();
+    }
+
+    async function fetchLost(){ const res=await fetch(SERVER_URL+"/lost-pets"); const list=await res.json(); document.getElementById('lost-list').innerHTML=list.reverse().map(p=>`<div class="lost-card ${p.type==='寻宠'?'lost':'found'}"><div style="display:flex;justify-content:space-between"><strong style="font-size:1.2em">${p.title}</strong><span style="padding:2px 8px;border-radius:4px;color:white;font-size:0.8em;background:${p.type==='寻宠'?'#ff6b6b':'#1dd1a1'}">${p.type}</span></div><p style="color:#555">${p.description}</p><div style="margin-top:15px;color:#888">${p.contact}</div></div>`).join(''); }
+    
+    // ✅ 已修复：点击取消时中断
+    async function publishLost(){ 
+        const t=prompt("类型(1寻宠 2寻主)"); if(t===null) return;
+        const ti=prompt("标题"); if(ti===null) return;
+        const d=prompt("描述"); if(d===null) return;
+        const c=prompt("联系方式"); if(c===null) return;
+
+        if(t&&ti) {
+            await fetch(SERVER_URL+"/lost-pets",{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({type:t==='1'?'寻宠':'寻主',title:ti,description:d,contact:c})
+            });
+            alert("发布成功"); 
+            fetchLost(); 
+        }
+    }
+
+    // ✅ 已修复：点击取消时中断
+    async function donate(){ 
+        const n=prompt("物品名"); if(n===null) return;
+        const q=prompt("数量"); if(q===null) return;
+        const rm=prompt("寄语"); if(rm===null) return;
+
+        if(n) {
+            await fetch(SERVER_URL+"/donations",{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({user_id:currentUser.id,item_name:n,quantity:q,remarks:rm})
+            });
+            alert("感谢您的慷慨捐赠！"); 
+            fetchDonations(); 
+        }
+    }
+
+    // ✅ 已修复：点击取消时中断，解决逻辑穿透问题
+    async function applyVol(){ 
+        const r=prompt("请输入申请理由:"); if(r===null) return;
+        const t=prompt("请输入您的可用时间:"); if(t===null) return;
+
+        if(!r.trim() || !t.trim()) return alert("理由和时间不能为空");
+
+        try {
+            const res = await fetch(SERVER_URL+"/volunteers",{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({user_id:currentUser.id,reason:r,available_time:t})
+            });
+            if(res.ok) {
+                alert("申请已提交，请等待管理员审核。");
+                fetchMyVolunteers();
+            }
+        } catch(e) { alert("网络错误"); }
+    }
+
+    async function fetchMyVolunteers(){ const res=await fetch(SERVER_URL+"/volunteers"); const list=await res.json(); document.getElementById('my-vol-list').innerHTML=list.filter(v=>v.user_id===currentUser.id).reverse().map(v=>`<tr><td>${v.reason}</td><td>${v.available_time}</td><td>${v.status}</td><td>${new Date(v.apply_date).toLocaleDateString()}</td></tr>`).join(''); }
+    function logout(){ if(confirm("确定要退出登录吗?")){ localStorage.removeItem('currentUser'); location.href='index.html'; } }
+</script>
+</body>
+</html>

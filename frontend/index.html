@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>登录</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI','微软雅黑'; height: 100vh; display: flex; justify-content: center; align-items: center; background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradientBG 15s ease infinite; }
+        @keyframes gradientBG { 0% {background-position:0% 50%} 50% {background-position:100% 50%} 100% {background-position:0% 50%} }
+        .login-box { background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); padding: 50px 40px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 400px; text-align: center; animation: slideUp 0.8s ease forwards; opacity: 0; transform: translateY(50px); }
+        @keyframes slideUp { to {opacity:1;transform:translateY(0)} }
+        .login-header i { font-size: 3em; color: #e73c7e; margin-bottom: 10px; animation: bounce 2s infinite; }
+        @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        .input-group { position: relative; margin-bottom: 30px; text-align: left; }
+        .input-group i { position: absolute; top: 15px; left: 15px; color: #999; }
+        .input-group input { width: 100%; padding: 12px 15px 12px 45px; border: none; background: #f0f2f5; border-radius: 50px; font-size: 16px; outline: none; transition: 0.3s; }
+        .input-group input:focus { background: #fff; box-shadow: 0 5px 15px rgba(231,60,126,0.2); transform: scale(1.02); }
+        .btn-login { width: 100%; padding: 15px; border: none; border-radius: 50px; background: linear-gradient(90deg, #e73c7e, #23a6d5); color: white; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 5px 15px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        .btn-login:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .footer-links a { color: #23a6d5; text-decoration: none; margin: 0 10px; font-weight: 500; }
+    </style>
+</head>
+<body>
+<div class="login-box">
+    <div class="login-header"><i class="fas fa-paw"></i><h2>欢迎回来</h2></div>
+    <div class="input-group"><input type="text" id="username" placeholder="请输入用户名"><i class="fas fa-user"></i></div>
+    <div class="input-group"><input type="password" id="password" placeholder="请输入密码"><i class="fas fa-lock"></i></div>
+    <button class="btn-login" onclick="handleLogin()">立即登录</button>
+    <div class="footer-links"><a href="register.html">注册新账号</a> | <a href="index.html">返回首页</a></div>
+</div>
+<script>
+    async function handleLogin() {
+        const u = document.getElementById('username').value, p = document.getElementById('password').value, btn = document.querySelector('.btn-login');
+        if(!u || !p) return;
+        btn.innerText = "登录中..."; btn.disabled = true;
+        try {
+            const res = await fetch('http://127.0.0.1:8000/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+            if(res.ok) {
+                const data = await res.json();
+                localStorage.setItem('currentUser', JSON.stringify(data));
+                btn.style.background = "#28a745"; btn.innerText = "✨ 登录成功！";
+                setTimeout(() => { location.href = data.role==='admin' ? 'admin.html' : 'home.html'; }, 800);
+            } else { alert("💔 登录失败：" + (await res.json()).detail); resetBtn(); }
+        } catch(e) { alert("服务器错误"); resetBtn(); }
+        function resetBtn(){ btn.innerText="立即登录"; btn.disabled=false; btn.style.background=""; }
+    }
+</script>
+</body>
+</html>
